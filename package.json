@@ -1,0 +1,16 @@
+{
+  "name": "clinica-amanda-souza-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp Clínica Amanda Souza",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "keepalive": "node keepalive.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0",
+    "express": "^4.21.0"
+  }
+}
