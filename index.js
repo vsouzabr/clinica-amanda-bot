@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const express = require('express');
 const pino = require('pino');
 const chatbot = require('./chatbot');
@@ -14,11 +14,18 @@ let isConnected = false;
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('./auth');
+  const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
-    auth: state,
+    version,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger)
+    },
     printQRInTerminal: false,
-    logger: logger
+    logger: logger,
+    browser: ['Clínica Amanda Souza', 'Chrome', '120.0.0'],
+    generateHighQualityLinkPreview: false
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -29,19 +36,21 @@ async function startBot() {
     if (qr) {
       qrCode = qr;
       console.log('\n=== ESCANEIE O QR CODE ABAIXO ===\n');
-      qrcode.generate(qr, { small: true });
+      console.log(qr);
       console.log('\nAbra o WhatsApp → Três pontinhos → Dispositivos conectados → Conectar dispositivo\n');
     }
 
     if (connection === 'close') {
-      const reason = lastDisconnect?.error?.output?.statusCode;
-      console.log('Desconectado. Motivo:', reason);
-
-      if (reason !== DisconnectReason.loggedOut) {
-        console.log('Reconectando...');
-        setTimeout(startBot, 3000);
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      
+      console.log('Desconectado. Código:', statusCode);
+      
+      if (shouldReconnect) {
+        console.log('Reconectando em 5 segundos...');
+        setTimeout(startBot, 5000);
       } else {
-        console.log('Deslogado. Escaneie o QR novamente.');
+        console.log('Deslogado. Reinicie o bot.');
         isConnected = false;
       }
     }
@@ -74,10 +83,7 @@ async function startBot() {
 }
 
 app.get('/status', (req, res) => {
-  res.json({
-    connected: isConnected,
-    hasQR: !!qrCode
-  });
+  res.json({ connected: isConnected, hasQR: !!qrCode });
 });
 
 app.get('/qr', (req, res) => {
@@ -93,7 +99,6 @@ app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
   startBot();
   
-  // Iniciar keep-alive no Render
   if (process.env.RENDER_EXTERNAL_URL) {
     require('./keepalive');
   }
