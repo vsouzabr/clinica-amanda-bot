@@ -1,7 +1,9 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const express = require('express');
-const qrcode = require('qrcode-terminal');
+const pino = require('pino');
 const chatbot = require('./chatbot');
+
+const logger = pino({ level: 'silent' });
 
 const app = express();
 app.get('/', (req, res) => res.send('Bot Online'));
@@ -16,7 +18,7 @@ async function startBot() {
   sock = makeWASocket({
     auth: state,
     printQRInTerminal: false,
-    logger: undefined
+    logger: logger
   });
 
   sock.ev.on('creds.update', saveCreds);
